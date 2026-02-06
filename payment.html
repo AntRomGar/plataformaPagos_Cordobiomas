@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirmación de Pago</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@100..1000&display=swap');
+
+* {
+  box-sizing: border-box;
+  font-family: "DM Sans", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f3f3f3;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.container {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* PAYPAL */
+.paypal-box {
+  background: white;
+  padding: 28px;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0,0,0,.1);
+  text-align: center;
+}
+
+.paypal-box img {
+  max-width: 180px;
+  margin-bottom: 20px;
+}
+
+.paypal-box button {
+  width: 100%;
+  padding: 14px;
+  background: #0070ba;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+/* ===== BIZUM ===== */
+.header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.intro {
+  text-align: center;
+  color: #6b7280;
+  font-size: 15px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 24px;
+}
+
+.label {
+  padding-left: 10%;
+  font-size: 14px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #9ca3af;
+  font-size: 11px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.grupo_telefono {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-wrapper {
+  width: 90%;
+  border: 1px solid #48dde0;
+  padding: 10px;
+  margin-top: 6px;
+}
+
+.input-wrapper input {
+  border: none;
+  outline: none;
+  width: 100%;
+}
+
+.helper {
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+  margin: 15px 0 27px;
+}
+
+.bizum-btn {
+  width: 100%;
+  background: #a3a3a3;
+  color: white;
+  border: none;
+  padding: 12px;
+  font-weight: bold;
+  cursor: not-allowed;
+}
+
+.bizum-btn.active {
+  background: #28b6c8;
+  cursor: pointer;
+}
+
+.footer {
+  margin-top: 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.status {
+  text-align: center;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+.countdown {
+  text-align: center;
+  font-size: 22px;
+  margin: 10px 0;
+}
+
+.link {
+  color: #28b6c8;
+  cursor: pointer;
+}
+
+/* SUCCESS */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  background: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 2000;
+}
+
+.check {
+  font-size: 90px;
+  color: #28b6c8;
+}
+
+.success-text {
+  font-size: 26px;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+.return {
+  margin-top: 30px;
+  padding: 14px 28px;
+  border: none;
+  background: #0070ba;
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ERROR OVERLAY */
+#errorOverlay .check {
+  color: #dc2626;
+}
+</style>
+</head>
+
+<body>
+
+<main class="page">
+  <section class="container" id="content"></section>
+</main>
+
+<!-- Success overlay -->
+<div class="success-overlay" id="success">
+  <div class="check">✔️</div>
+  <div class="success-text">PAGO REALIZADO CON ÉXITO</div>
+  <button class="return" onclick="location.href='./credenciales.html'">
+    Obtener credenciales
+  </button>
+</div>
+
+<!-- Error overlay -->
+<div class="success-overlay" id="errorOverlay">
+  <div class="check">❌</div>
+  <div class="success-text">EL PAGO HA FALLADO</div>
+  <button class="return" onclick="retryPay()">REINTENTAR PAGO</button>
+</div>
+
+<script>
+let intentoFallido = false;
+let timer = null;
+
+const params = new URLSearchParams(location.search);
+const method = params.get('method');
+const price = params.get('price');
+
+const content = document.getElementById('content');
+
+/* PAYPAL */
+if(method === 'paypal'){
+  content.innerHTML = `
+    <div class="paypal-box">
+      <img src="./src/paypal.png">
+      <p><b>Matrícula Academia Idiomas</b></p>
+      <p><strong>${price} €</strong></p>
+      <button id="paypalBtn">PROCEDER AL PAGO</button>
+    </div>
+  `;
+
+  const paypalBtn = document.getElementById('paypalBtn');
+  paypalBtn.addEventListener('click', finish);
+}
+
+/* BIZUM */
+if(method === 'bizum'){
+  content.innerHTML = `
+    <header class="header">
+      <img src="./src/Bizum.png" style="width:60%">
+    </header>
+
+    <div class="card">
+      <div id="bizumInitial">
+        <p class="intro">Introduce tu teléfono para <b>continuar con la compra</b></p>
+
+        <label class="label">
+          Teléfono registrado en Bizum <span class="info">?</span>
+        </label>
+
+        <div class="grupo_telefono">
+          <img src="./src/phone_img.png" style="width:10%;margin-top:6px">
+          <div class="input-wrapper">
+            <input type="tel" id="phone" placeholder="Introduce tu teléfono">
+          </div>
+        </div>
+
+        <p class="helper">No olvides tener tu móvil a mano</p>
+
+        <button class="bizum-btn" id="bizumBtn">CONTINUAR CON LA COMPRA</button>
+
+        <div class="footer">
+          <p><b>Concepto:</b> Matrícula Academia Idiomas</p>
+          <p><b>Importe:</b> ${price} €</p>
+          <p><b>PAGO 100% SEGURO</b></p>
+        </div>
+      </div>
+
+      <!-- Contenedor del countdown -->
+      <div id="countdownContainer" style="margin-top:20px;"></div>
+    </div>
+  `;
+
+  const phone = document.getElementById('phone');
+  const btn = document.getElementById('bizumBtn');
+  const initial = document.getElementById('bizumInitial');
+  const countdownContainer = document.getElementById('countdownContainer');
+
+  phone.addEventListener('input', () => {
+    if(phone.value.length >= 6){
+      btn.classList.add('active');
+      btn.disabled = false;
+    }
+  });
+
+  btn.addEventListener('click', () => {
+    initial.style.display = 'none';
+    startCountdown(countdownContainer);
+  });
+}
+
+// Solo actualizamos el countdownContainer sin tocar la tarjeta
+function startCountdown(container){
+  let time = 360;
+
+  timer = setInterval(() => {
+    const m = Math.floor(time / 60);
+    const s = time % 60;
+
+    container.innerHTML = `
+      <div class="status">MIRA EN LA BANCA APP</div>
+      <p style="text-align:center">Concepto: <b>Matrícula Academia Idiomas</b></p>
+      <div class="countdown">${m}:${s.toString().padStart(2,'0')}</div>
+      <div class="link" style="text-align:center" onclick="finish()">SI LO HAS REALIZADO, PULSA AQUÍ</div>
+    `;
+
+    time--;
+    if(time < 0) clearInterval(timer);
+  }, 1000);
+}
+
+function finish(){
+  if(timer) clearInterval(timer);
+
+  const exito = Math.random() >= 0.5;
+
+  if(exito){
+    mostrarExito();
+  } else {
+    intentoFallido = true;
+    document.getElementById('errorOverlay').style.display = 'flex';
+  }
+}
+
+function retryPay(){
+  intentoFallido = false;
+  document.getElementById('errorOverlay').style.display = 'none';
+  mostrarExito();
+}
+
+function mostrarExito(){
+  document.getElementById('success').style.display = 'flex';
+}
+</script>
+
+</body>
+</html>
